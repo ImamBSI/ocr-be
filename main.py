@@ -4,9 +4,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-
 from config import settings
-from database import init_db, check_db_connection
+from database.connection import init_db, check_db_connection
 
 # Import all routes
 from routes import upload, cv, scoring, jobs, system

@@ -58,7 +58,7 @@ python-multipart==0.0.6
 
 # ==================== UTILITIES ====================
 # UUID version 6 support (for better IDs)
-uuid6==1.0.3
+uuid6
 
 # HTTP library for making requests (optional, for external APIs)
 requests==2.31.0
