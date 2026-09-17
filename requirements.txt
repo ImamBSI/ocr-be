@@ -4,7 +4,7 @@
 
 # ==================== CORE FRAMEWORK ====================
 # Web framework for building REST APIs
-fastapi==0.104.1
+fastapi
 
 # ASGI server to run FastAPI
 uvicorn[standard]==0.24.0

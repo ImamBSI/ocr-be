@@ -370,7 +370,7 @@ class AnalyticsService:
             'average_score': sum(score_values) / len(score_values),
             'highest_score': max(score_values),
             'lowest_score': min(score_values),
-            'median_score': score_values[len(score_values) // 2],
+            'median_score': score_values[len(score_values) / 2],
         }
     
     

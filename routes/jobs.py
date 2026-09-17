@@ -14,7 +14,7 @@ from schemas import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
+router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
 # ==================== Routes ====================

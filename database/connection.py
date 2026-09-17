@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from config import settings
@@ -92,11 +92,7 @@ def check_db_connection() -> bool:
     """Check if database connection is working."""
     try:
         with engine.connect() as connection:
-            # For different database types
-            if IS_SQLITE:
-                connection.execute("SELECT 1")
-            else:
-                connection.execute("SELECT 1")
+            connection.execute(text("SELECT 1"))
         return True
     except Exception as e:
         logger.error(f"Database connection failed: {str(e)}")

@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting OCR Recruitment System")
-    logger.info(f"API Version: v1")
+    logger.info(f"API Prefix: {settings.API_STR}")
     logger.info(f"Debug Mode: {settings.DEBUG}")
     logger.info(f"Database: {settings.DATABASE_URL}")
     
@@ -110,7 +110,7 @@ async def root():
         "status": "running",
         "docs": "/docs",
         "redoc": "/redoc",
-        "api_version": settings.API_V1_STR,
+        "api_prefix": settings.API_STR,
     }
 
 
@@ -123,7 +123,7 @@ async def debug_config():
     
     return {
         "project_name": settings.PROJECT_NAME,
-        "api_v1_str": settings.API_V1_STR,
+        "api_prefix": settings.API_STR,
         "debug": settings.DEBUG,
         "upload_dir": settings.UPLOAD_DIR,
         "allowed_file_types": settings.ALLOWED_FILE_TYPES,

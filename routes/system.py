@@ -9,7 +9,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1", tags=["system"])
+router = APIRouter(prefix="/api", tags=["system"])
 
 
 @router.get("/health", response_model=HealthResponse)

@@ -14,7 +14,7 @@ from services.ocr import CVProcessingService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/cv", tags=["cv"])
+router = APIRouter(prefix="/api/cv", tags=["cv"])
 
 
 # ==================== Helper Functions ====================
@@ -181,28 +181,12 @@ async def process_cv_batch(
     }
 
 
-@router.get("/{candidate_id}", response_model=CandidateResponse)
-async def get_candidate(
-    candidate_id: str,
-    db: Session = Depends(get_db)
-):
-    """
-    Get single candidate details
-    """
-    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-    
-    if not candidate:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-    
-    return CandidateResponse.model_validate(candidate)
-
-
 @router.get("/list", response_model=CandidatePaginatedResponse)
 async def list_candidates(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort_by: str = Query("created_at"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db)
 ):
     """
@@ -234,7 +218,7 @@ async def list_candidates(
     candidates = query.offset(offset).limit(page_size).all()
     
     # Calculate total pages
-    total_pages = (total + page_size - 1) // page_size
+    total_pages = (total + page_size - 1) / page_size
     
     return CandidatePaginatedResponse(
         items=[CandidateResponse.model_validate(c) for c in candidates],
@@ -243,6 +227,22 @@ async def list_candidates(
         page_size=page_size,
         total_pages=total_pages,
     )
+
+
+@router.get("/{candidate_id}", response_model=CandidateResponse)
+async def get_candidate(
+    candidate_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get single candidate details
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    return CandidateResponse.model_validate(candidate)
 
 
 @router.delete("/{candidate_id}")

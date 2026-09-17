@@ -5,14 +5,14 @@ from sqlalchemy.orm import Session
 import logging
 
 from config import settings
-from database import get_db
-from models import Upload, UploadStatus
-from schemas import UploadResponse, BatchUploadResponse
+from database.connection import get_db
+from models.models import Upload, UploadStatus
+from schemas.schemas import UploadResponse, BatchUploadResponse
 from services.ocr import CVProcessingService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/upload", tags=["upload"])
+router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 
 # ==================== Helper Functions ====================

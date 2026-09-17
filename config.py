@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # ==================== App Config ====================
     PROJECT_NAME: str = "OCR Recruitment System"
     DEBUG: bool = True
-    API_V1_STR: str = "/api/v1"
+    API_STR: str = "/api/"
     
     # ==================== Database Config ====================
     # Using SQLite for development, PostgreSQL for production

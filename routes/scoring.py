@@ -16,7 +16,7 @@ from services.scoring import ScoringService, AnalyticsService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/score", tags=["scoring"])
+router = APIRouter(prefix="/api/score", tags=["scoring"])
 
 
 # ==================== Routes ====================
