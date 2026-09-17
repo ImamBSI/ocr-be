@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8",
-        extra="ignore"  # Mengabaikan variabel ekstra di .env agar tidak error
+        extra="ignore"  
     )
 
-# Inisialisasi settings yang bisa dipanggil di file lain
 settings = Settings()
