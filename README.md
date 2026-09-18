@@ -33,8 +33,10 @@ Dibangun dengan **FastAPI**, **SQLAlchemy**, dan **Pydantic v2**.
 python -m venv .venv
 
 # 2. Aktifkan
-#   Windows:
+#   Windows (cmd/PowerShell):
 .venv\Scripts\activate
+#   Windows (Git Bash/MINGW64):
+.venv/Scripts/activate
 #   Linux/macOS:
 source .venv/bin/activate
 
@@ -51,24 +53,34 @@ Tanpa file `.env`, aplikasi tetap berjalan menggunakan nilai default dari `app/c
 
 ## Menjalankan Server
 
-> Wajib dijalankan dari **root project** ini (tempat `.env` dan `./uploads` relatif di-resolve).
+> Wajib dijalankan dari **root project** ini (tempat `.env`, `pyproject.toml`, dan `./uploads` relatif di-resolve).
 
-### Development (auto-reload)
+Project menggunakan **FastAPI CLI** (disediakan `fastapi-cli`, sudah termasuk `fastapi[standard]`). Entry point aplikasi dikonfigurasi di `pyproject.toml` (`[tool.fastapi] entrypoint = "app.main:app"`), jadi tidak perlu menuliskan path.
+
+### Development (auto-reload, port 8000)
+
+```bash
+fastapi dev
+```
+
+atau dengan venv:
+
+```bash
+.venv/Scripts/fastapi dev
+```
+
+### Production (tanpa reload)
+
+```bash
+fastapi run
+```
+
+### Alternatif (tanpa FastAPI CLI)
 
 ```bash
 uvicorn app.main:app --reload --port 8000
-```
-
-atau:
-
-```bash
-python app/main.py
-```
-
-### Production (Linux)
-
-```bash
-gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000
+# atau
+python -m app.main
 ```
 
 ### Verifikasi
@@ -225,8 +237,9 @@ Tipe criteria: `skill`, `experience`, `education`, `keyword`, `custom`.
 │       └── scoring.py          # Scoring + analytics
 ├── uploads/                    # File CV tersimpan (runtime)
 ├── requirements.txt
+├── pyproject.toml              # Konfigurasi FastAPI CLI (entrypoint)
 ├── .env.example
 └── ocr_recruitment.db          # SQLite (runtime, auto-create)
 ```
 
-> Catatan: project memakai **namespace packages** (tanpa `__init__.py`). Jalankan semua perintah dari root project.
+> Catatan: project memakai **namespace packages** (tanpa `__init__.py`). Jalankan semua perintah dari root project. Pastikan `.venv` aktif — di Git Bash Windows gunakan `.venv/Scripts/activate` (dengan titik di depan).

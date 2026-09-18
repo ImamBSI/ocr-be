@@ -1,22 +1,24 @@
 # ==================== OCR Recruitment System - Requirements ====================
-# Python 3.8+ required
+# Python 3.9+ required
 # Install dengan: pip install -r requirements.txt
 
 # ==================== CORE FRAMEWORK ====================
-# Web framework for building REST APIs
-fastapi
+# Web framework + CLI (fastapi dev / fastapi run)
+# [standard] menyertakan uvicorn, fastapi-cli, python-multipart,
+# email-validator, httpx, dan jinja2
+fastapi[standard]==0.141.1
 
 # ASGI server to run FastAPI
-uvicorn[standard]==0.24.0
+uvicorn[standard]==0.53.0
 
 # Data validation using Python type annotations
-pydantic==2.5.0
+pydantic==2.13.5
 
 # Email validation for pydantic EmailStr
-email-validator==2.1.0
+email-validator==2.3.0
 
 # Settings management from environment variables
-pydantic-settings==2.1.0
+pydantic-settings==2.15.0
 
 # Load environment variables from .env file
 python-dotenv==1.0.0
@@ -51,11 +53,9 @@ numpy==1.26.2
 # Data analysis and manipulation library
 pandas==2.1.3
 
-# ==================== CORS & SECURITY ====================
-# CORS is built into FastAPI (no extra package needed)
-
-# Handle file uploads and form data
-python-multipart==0.0.6
+# ==================== FILE UPLOAD ====================
+# Handle file uploads and form data (juga dibawa fastapi[standard])
+python-multipart==0.0.32
 
 # ==================== UTILITIES ====================
 # UUID version 6 support (for better IDs)
@@ -71,7 +71,7 @@ pytest==7.4.3
 # Async support for pytest
 pytest-asyncio==0.21.1
 
-# HTTP client for FastAPI TestClient (pin <0.28 untuk starlette 0.27)
+# HTTP client untuk FastAPI TestClient
 httpx==0.27.2
 
 # Code formatter
@@ -93,9 +93,6 @@ gunicorn==21.2.0
 
 # Generate API documentation
 # swagger-ui==1.0.15
-
-# Email support (for future notifications)
-# python-email-validator==2.1.0
 
 # JWT authentication (for future user authentication)
 # python-jose==3.3.0
