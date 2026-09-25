@@ -2,11 +2,10 @@ import logging
 import os
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_repos
+from app.db.base import Repositories
 from app.models.enums import UploadStatus
-from app.models.upload import Upload
 from app.schemas.upload import BatchUploadResponse, UploadResponse
 from app.services.file_storage import delete_file, save_uploaded_file, validate_file
 
@@ -19,7 +18,7 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 async def upload_cv(
     file: UploadFile = File(...),
     job_requirement_id: str = None,
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Upload single CV file."""
     try:
@@ -29,18 +28,14 @@ async def upload_cv(
         file_path = save_uploaded_file(file)
         file_size = os.path.getsize(file_path)
 
-        upload = Upload(
+        upload = repos.uploads.create(
             file_name=file.filename,
             file_path=file_path,
             file_size=file_size,
             status=UploadStatus.PENDING,
         )
-        db.add(upload)
-        db.commit()
-        db.refresh(upload)
 
         logger.info(f"Upload record created: {upload.id}")
-
         return UploadResponse.model_validate(upload)
 
     except HTTPException as e:
@@ -54,7 +49,7 @@ async def upload_cv(
 async def upload_cv_batch(
     files: list[UploadFile] = File(...),
     job_requirement_id: str = None,
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Upload multiple CV files dalam batch."""
     logger.info(f"Batch uploading {len(files)} files")
@@ -69,16 +64,12 @@ async def upload_cv_batch(
             file_path = save_uploaded_file(file)
             file_size = os.path.getsize(file_path)
 
-            upload = Upload(
+            upload = repos.uploads.create(
                 file_name=file.filename,
                 file_path=file_path,
                 file_size=file_size,
                 status=UploadStatus.PENDING,
             )
-            db.add(upload)
-            db.commit()
-            db.refresh(upload)
-
             results.append(UploadResponse.model_validate(upload))
             uploaded_count += 1
 
@@ -106,10 +97,10 @@ async def upload_cv_batch(
 @router.get("/{upload_id}/status", response_model=UploadResponse)
 async def get_upload_status(
     upload_id: str,
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Get upload status."""
-    upload = db.query(Upload).filter(Upload.id == upload_id).first()
+    upload = repos.uploads.get(upload_id)
 
     if not upload:
         raise HTTPException(status_code=404, detail="Upload not found")
@@ -122,18 +113,17 @@ async def get_upload_status(
 @router.delete("/{upload_id}")
 async def delete_upload(
     upload_id: str,
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Delete upload dan associated file."""
     try:
-        upload = db.query(Upload).filter(Upload.id == upload_id).first()
+        upload = repos.uploads.get(upload_id)
 
         if not upload:
             raise HTTPException(status_code=404, detail="Upload not found")
 
         delete_file(upload.file_path)
-        db.delete(upload)
-        db.commit()
+        repos.uploads.delete(upload_id)
 
         return {"message": "Upload deleted successfully"}
 

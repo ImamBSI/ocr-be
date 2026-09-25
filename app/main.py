@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.api_router import api_router
 from app.core.config import settings
-from app.db.session import check_db_connection, init_db
+from app.db.factory import check_storage, init_storage
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,15 +24,15 @@ async def lifespan(app: FastAPI):
     logger.info(f"Database: {settings.DATABASE_URL}")
 
     try:
-        init_db()
-        logger.info("Database initialized successfully")
+        init_storage()
+        logger.info("Storage initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize database: {str(e)}")
+        logger.error(f"Failed to initialize storage: {str(e)}")
 
-    if check_db_connection():
-        logger.info("Database connection verified")
+    if check_storage():
+        logger.info("Storage connection verified")
     else:
-        logger.warning("Database connection check failed")
+        logger.warning("Storage connection check failed")
 
     yield
 
@@ -104,6 +104,7 @@ async def debug_config():
         "upload_dir": settings.UPLOAD_DIR,
         "allowed_file_types": settings.ALLOWED_FILE_TYPES,
         "ocr_engine": settings.OCR_ENGINE,
+        "storage_backend": settings.STORAGE_BACKEND,
         "database_type": (
             "SQLite" if "sqlite" in settings.DATABASE_URL else "PostgreSQL"
         ),

@@ -1,0 +1,57 @@
+{
+  "741667ae-d564-4e22-8b2f-091bc19bb360": {
+    "title": "Senior Software Engineer",
+    "description": "We are looking for a Senior Software Engineer to design, develop, and maintain scalable, reliable, and maintainable software applications. The ideal candidate has strong software engineering fundamentals, hands-on experience building production systems, and the ability to make sound technical decisions while collaborating with cross-functional teams.\n\nThe Senior Software Engineer will be involved in the complete software development lifecycle, including requirements analysis, system design, implementation, testing, code review, deployment, monitoring, and production troubleshooting.\n\nResponsibilities:\n- Design and develop scalable, secure, and maintainable software applications.\n- Translate business and technical requirements into effective software solutions.\n- Design and develop RESTful APIs and backend services.\n- Develop and maintain frontend applications when required.\n- Design and optimize relational and/or NoSQL database structures.\n- Write clean, efficient, testable, and maintainable code.\n- Perform code reviews and provide constructive technical feedback.\n- Investigate and resolve complex production issues and software defects.\n- Improve application performance, reliability, scalability, and security.\n- Implement automated testing and contribute to software quality practices.\n- Work with DevOps engineers to improve CI/CD pipelines and deployment processes.\n- Participate in system architecture and technical design discussions.\n- Collaborate with Product Managers, QA Engineers, DevOps Engineers, and other stakeholders.\n- Provide technical guidance and mentoring to junior and mid-level engineers.\n- Contribute to engineering standards, documentation, and development best practices.",
+    "criteria": [
+      {
+        "id": "criteria-1790320717705",
+        "name": "Programming",
+        "description": "",
+        "type": "skill",
+        "weight": 9.0,
+        "keywords": [
+          "Python",
+          "Nodejs",
+          "Javascripts"
+        ],
+        "created_at": "2026-09-25T07:47:51.050018+00:00",
+        "updated_at": "2026-09-25T07:47:51.050018+00:00"
+      },
+      {
+        "id": "criteria-1790321270435",
+        "name": "Databases",
+        "description": "",
+        "type": "skill",
+        "weight": 6.9,
+        "keywords": [
+          "SQL",
+          "MYSQL",
+          "PostgreSQL",
+          "MongoDB",
+          "SQL Server"
+        ],
+        "created_at": "2026-09-25T07:47:51.050018+00:00",
+        "updated_at": "2026-09-25T07:47:51.050018+00:00"
+      },
+      {
+        "id": "criteria-1790322077190",
+        "name": "Framework",
+        "description": "",
+        "type": "skill",
+        "weight": 5.0,
+        "keywords": [
+          "React",
+          "Vue",
+          "Nextjs",
+          "Angular",
+          "Express"
+        ],
+        "created_at": "2026-09-25T07:47:51.050018+00:00",
+        "updated_at": "2026-09-25T07:47:51.050018+00:00"
+      }
+    ],
+    "created_at": "2026-09-25T07:27:43.072152+00:00",
+    "updated_at": "2026-09-25T07:47:51.050018+00:00",
+    "id": "741667ae-d564-4e22-8b2f-091bc19bb360"
+  }
+}

@@ -1,9 +1,6 @@
 import logging
 
-from sqlalchemy.orm import Session
-
-from app.models.candidate import Candidate
-from app.models.upload import Upload
+from app.db.base import Record, Repositories
 from app.services.file_storage import get_file_type
 from app.services.ocr import CVProcessingService
 
@@ -14,16 +11,16 @@ class CVService:
     """Service untuk processing dan persistence data candidate."""
 
     @staticmethod
-    def process_upload(db: Session, upload: Upload) -> Candidate:
+    def process_upload(repos: Repositories, upload: Record) -> Record:
         """
         Process CV dari upload record: extract text, parse, lalu upsert candidate.
 
         Args:
-            db: Database session
+            repos: Kumpulan repository storage
             upload: Upload record yang berisi file CV
 
         Returns:
-            Candidate object (baru atau yang di-update)
+            Candidate record (baru atau yang di-update)
         """
         if not upload.file_path:
             raise ValueError("File path not found")
@@ -33,23 +30,24 @@ class CVService:
             upload.file_path, file_type
         )
 
-        candidate = db.query(Candidate).filter(
-            Candidate.email == parsed_data.get("email")
-        ).first()
+        candidate = repos.candidates.get_by_email(parsed_data.get("email"))
 
         if candidate:
-            candidate.name = parsed_data.get("name", candidate.name)
-            candidate.phone = parsed_data.get("phone", candidate.phone)
-            candidate.experience_years = parsed_data.get("experience_years", 0)
-            candidate.skills = parsed_data.get("skills", [])
-            candidate.education = parsed_data.get("education")
-            candidate.cv_text = parsed_data.get("cv_text")
-            candidate.file_name = upload.file_name
-            candidate.file_path = upload.file_path
-            candidate.is_processed = 1
+            candidate = repos.candidates.update(
+                candidate.id,
+                name=parsed_data.get("name", candidate.name),
+                phone=parsed_data.get("phone", candidate.phone),
+                experience_years=parsed_data.get("experience_years", 0),
+                skills=parsed_data.get("skills", []),
+                education=parsed_data.get("education"),
+                cv_text=parsed_data.get("cv_text"),
+                file_name=upload.file_name,
+                file_path=upload.file_path,
+                is_processed=1,
+            )
             logger.info(f"Updated existing candidate: {candidate.id}")
         else:
-            candidate = Candidate(
+            candidate = repos.candidates.create(
                 upload_id=upload.id,
                 name=parsed_data.get("name", "Unknown"),
                 email=parsed_data.get("email", ""),
@@ -62,10 +60,6 @@ class CVService:
                 file_path=upload.file_path,
                 is_processed=1,
             )
-            db.add(candidate)
             logger.info(f"Created new candidate: {candidate.id}")
-
-        db.commit()
-        db.refresh(candidate)
 
         return candidate

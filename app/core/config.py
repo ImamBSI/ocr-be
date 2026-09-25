@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_STR: str = "/api/"
 
+    # Storage backend: "json" = file JSON di app/db, "sql" = SQLAlchemy/SQLite
+    STORAGE_BACKEND: str = Field(default="json", validation_alias="STORAGE_BACKEND")
+
     # ==================== Database Config ====================
     DATABASE_URL: str = Field(
         default="sqlite:///./ocr_recruitment.db",

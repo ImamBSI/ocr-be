@@ -1,12 +1,9 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
-from app.models.candidate import Candidate
-from app.models.job import JobRequirement
-from app.models.score import Score
+from app.api.deps import get_repos
+from app.db.base import Repositories
 from app.schemas.scoring import (
     BatchScoringRequest,
     BatchScoringResponse,
@@ -21,61 +18,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/score", tags=["scoring"])
 
 
-@router.post("/{candidate_id}", response_model=ScoringResponse)
-async def score_candidate(
-    candidate_id: str,
-    body: ScoringRequest,
-    db: Session = Depends(get_db),
-):
-    """Score single candidate untuk job requirement."""
-    try:
-        logger.info(
-            f"Scoring candidate {candidate_id} for job {body.job_requirement_id}"
-        )
-
-        candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-        if not candidate:
-            raise HTTPException(status_code=404, detail="Candidate not found")
-
-        job = db.query(JobRequirement).filter(
-            JobRequirement.id == body.job_requirement_id
-        ).first()
-        if not job:
-            raise HTTPException(status_code=404, detail="Job requirement not found")
-
-        score_obj = ScoringService.score_and_save(candidate, job, db)
-        ranking = ScoringService.get_candidate_ranking(
-            candidate_id, body.job_requirement_id, db
-        )
-
-        return ScoringResponse(
-            id=score_obj.id,
-            candidate_id=score_obj.candidate_id,
-            score=score_obj.score,
-            rank=ranking,
-            matched_criteria=score_obj.matched_criteria,
-            status="success",
-            created_at=score_obj.created_at,
-        )
-
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error scoring candidate: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+def _build_scoring_response(score_obj, rank) -> ScoringResponse:
+    return ScoringResponse(
+        id=score_obj.id,
+        candidate_id=score_obj.candidate_id,
+        score=score_obj.score,
+        rank=rank,
+        matched_criteria=score_obj.matched_criteria,
+        status="success",
+        created_at=score_obj.created_at,
+    )
 
 
 @router.post("/batch", response_model=BatchScoringResponse)
 async def score_batch(
     body: BatchScoringRequest,
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Score multiple candidates dalam batch."""
     logger.info(f"Batch scoring {len(body.candidate_ids)} candidates")
 
-    job = db.query(JobRequirement).filter(
-        JobRequirement.id == body.job_requirement_id
-    ).first()
+    job = repos.jobs.get(body.job_requirement_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job requirement not found")
 
@@ -85,27 +48,16 @@ async def score_batch(
 
     for candidate_id in body.candidate_ids:
         try:
-            candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+            candidate = repos.candidates.get(candidate_id)
             if not candidate:
                 failed_count += 1
                 continue
 
-            score_obj = ScoringService.score_and_save(candidate, job, db)
+            score_obj = ScoringService.score_and_save(repos, candidate, job)
             ranking = ScoringService.get_candidate_ranking(
-                candidate_id, body.job_requirement_id, db
+                repos, candidate_id, body.job_requirement_id
             )
-
-            results.append(
-                ScoringResponse(
-                    id=score_obj.id,
-                    candidate_id=score_obj.candidate_id,
-                    score=score_obj.score,
-                    rank=ranking,
-                    matched_criteria=score_obj.matched_criteria,
-                    status="success",
-                    created_at=score_obj.created_at,
-                )
-            )
+            results.append(_build_scoring_response(score_obj, ranking))
             scored_count += 1
 
         except Exception as e:
@@ -120,28 +72,60 @@ async def score_batch(
     )
 
 
+@router.post("/{candidate_id}", response_model=ScoringResponse)
+async def score_candidate(
+    candidate_id: str,
+    body: ScoringRequest,
+    repos: Repositories = Depends(get_repos),
+):
+    """Score single candidate untuk job requirement."""
+    try:
+        logger.info(
+            f"Scoring candidate {candidate_id} for job {body.job_requirement_id}"
+        )
+
+        candidate = repos.candidates.get(candidate_id)
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+
+        job = repos.jobs.get(body.job_requirement_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job requirement not found")
+
+        score_obj = ScoringService.score_and_save(repos, candidate, job)
+        ranking = ScoringService.get_candidate_ranking(
+            repos, candidate_id, body.job_requirement_id
+        )
+
+        return _build_scoring_response(score_obj, ranking)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error scoring candidate: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/ranked/{job_id}", response_model=list[RankedCandidateResponse])
 async def get_ranked_candidates(
     job_id: str,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Get ranked candidates untuk job."""
     try:
-        job = db.query(JobRequirement).filter(JobRequirement.id == job_id).first()
+        job = repos.jobs.get(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="Job requirement not found")
 
-        candidates = ScoringService.get_ranked_candidates(job_id, db, limit, offset)
+        candidates = ScoringService.get_ranked_candidates(repos, job_id, limit, offset)
 
         response = []
         for candidate in candidates:
-            score_obj = db.query(Score).filter(
-                Score.candidate_id == candidate.id,
-                Score.job_id == job_id,
-            ).first()
-
+            if not candidate:
+                continue
+            score_obj = repos.scores.get(candidate.id, job_id)
             if score_obj:
                 response.append(
                     RankedCandidateResponse(
@@ -177,23 +161,12 @@ async def get_ranked_candidates(
 async def get_score_details(
     candidate_id: str,
     job_id: str = Query(...),
-    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
 ):
     """Get detailed score untuk candidate."""
-    score_obj = db.query(Score).filter(
-        Score.candidate_id == candidate_id,
-        Score.job_id == job_id,
-    ).first()
+    score_obj = repos.scores.get(candidate_id, job_id)
 
     if not score_obj:
         raise HTTPException(status_code=404, detail="Score not found")
 
-    return ScoringResponse(
-        id=score_obj.id,
-        candidate_id=score_obj.candidate_id,
-        score=score_obj.score,
-        rank=score_obj.rank,
-        matched_criteria=score_obj.matched_criteria,
-        status="success",
-        created_at=score_obj.created_at,
-    )
+    return _build_scoring_response(score_obj, score_obj.rank)

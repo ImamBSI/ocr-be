@@ -1,13 +1,8 @@
 import logging
 from typing import Dict, List, Tuple
 
-from sqlalchemy.orm import Session
-
-from app.models.candidate import Candidate
+from app.db.base import Record, Repositories
 from app.models.enums import ScoringCriteriaType
-from app.models.job import JobRequirement, ScoringCriteria
-from app.models.score import Score
-from app.models.upload import Upload
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +94,7 @@ class ScoringService:
 
     @staticmethod
     def score_candidate(
-        candidate: Candidate,
-        job_requirement: JobRequirement,
-        db: Session,
+        candidate: Record, job_requirement: Record
     ) -> Tuple[float, Dict[str, float]]:
         logger.info(f"Scoring candidate {candidate.id} for job {job_requirement.id}")
 
@@ -159,69 +152,51 @@ class ScoringService:
 
     @staticmethod
     def score_and_save(
-        candidate: Candidate,
-        job_requirement: JobRequirement,
-        db: Session,
-    ) -> Score:
+        repos: Repositories, candidate: Record, job_requirement: Record
+    ) -> Record:
         score_value, matched_criteria = ScoringService.score_candidate(
-            candidate, job_requirement, db
+            candidate, job_requirement
         )
 
-        existing_score = db.query(Score).filter(
-            Score.candidate_id == candidate.id,
-            Score.job_id == job_requirement.id,
-        ).first()
-
+        existing_score = repos.scores.get(candidate.id, job_requirement.id)
         if existing_score:
-            db.delete(existing_score)
+            repos.scores.delete(existing_score.id)
 
-        score_obj = Score(
+        score_obj = repos.scores.create(
             candidate_id=candidate.id,
             job_id=job_requirement.id,
             score=score_value,
             matched_criteria=matched_criteria,
         )
 
-        db.add(score_obj)
-        db.commit()
-        db.refresh(score_obj)
-
         return score_obj
 
     @staticmethod
     def get_ranked_candidates(
+        repos: Repositories,
         job_id: str,
-        db: Session,
         limit: int = 20,
         offset: int = 0,
-    ) -> List[Candidate]:
-        scores = db.query(Score).filter(Score.job_id == job_id).order_by(
-            Score.score.desc()
-        ).all()
+    ) -> List[Record]:
+        scores = repos.scores.list_by_job(job_id)
+        scores.sort(key=lambda s: s.score, reverse=True)
 
         for rank, score in enumerate(scores, 1):
-            score.rank = rank
-
-        db.commit()
+            repos.scores.set_rank(score.id, rank)
 
         ranked_scores = scores[offset : offset + limit]
-        return [score.candidate for score in ranked_scores]
+        return [repos.candidates.get(s.candidate_id) for s in ranked_scores]
 
     @staticmethod
     def get_candidate_ranking(
-        candidate_id: str, job_id: str, db: Session
+        repos: Repositories, candidate_id: str, job_id: str
     ) -> int:
-        higher_scores = db.query(Score).filter(
-            Score.job_id == job_id,
-            Score.score
-            > db.query(Score.score)
-            .filter(
-                Score.candidate_id == candidate_id,
-                Score.job_id == job_id,
-            )
-            .scalar(),
-        ).count()
-
+        score = repos.scores.get(candidate_id, job_id)
+        if score is None:
+            return 0
+        higher_scores = repos.scores.count_higher(
+            candidate_id, job_id, score.score
+        )
         return higher_scores + 1
 
 
@@ -229,8 +204,8 @@ class AnalyticsService:
     """Service untuk analytics dan statistics."""
 
     @staticmethod
-    def get_job_statistics(job_id: str, db: Session) -> Dict:
-        scores = db.query(Score).filter(Score.job_id == job_id).all()
+    def get_job_statistics(job_id: str, repos: Repositories) -> Dict:
+        scores = repos.scores.list_by_job(job_id)
 
         if not scores:
             return {
@@ -252,18 +227,18 @@ class AnalyticsService:
         }
 
     @staticmethod
-    def get_system_statistics(db: Session) -> Dict:
-        total_candidates = db.query(Candidate).count()
-        total_jobs = db.query(JobRequirement).count()
-        total_uploads = db.query(Upload).count()
-        total_scores = db.query(Score).count()
+    def get_system_statistics(repos: Repositories) -> Dict:
+        total_candidates = repos.candidates.count()
+        total_jobs = repos.jobs.count()
+        total_uploads = repos.uploads.count()
+        total_scores = repos.scores.count()
 
         avg_score = 0
         highest_score = 0
         lowest_score = 0
 
         if total_scores > 0:
-            scores = [s.score for s in db.query(Score).all()]
+            scores = [s.score for s in repos.scores.all()]
             avg_score = sum(scores) / len(scores)
             highest_score = max(scores)
             lowest_score = min(scores)

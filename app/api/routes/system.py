@@ -1,10 +1,10 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
-from app.db.session import check_db_connection
+from app.api.deps import get_repos
+from app.db.base import Repositories
+from app.db.factory import check_storage
 from app.schemas.system import HealthResponse, StatsResponse
 from app.services.scoring import AnalyticsService
 
@@ -14,10 +14,10 @@ router = APIRouter(tags=["system"])
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check(db: Session = Depends(get_db)):
+async def health_check(repos: Repositories = Depends(get_repos)):
     """Health check endpoint."""
     try:
-        db_status = "connected" if check_db_connection() else "disconnected"
+        db_status = "connected" if check_storage() else "disconnected"
 
         return HealthResponse(
             status="ok" if db_status == "connected" else "degraded",
@@ -34,10 +34,10 @@ async def health_check(db: Session = Depends(get_db)):
 
 
 @router.get("/stats", response_model=StatsResponse)
-async def get_stats(db: Session = Depends(get_db)):
+async def get_stats(repos: Repositories = Depends(get_repos)):
     """Get system statistics."""
     try:
-        stats = AnalyticsService.get_system_statistics(db)
+        stats = AnalyticsService.get_system_statistics(repos)
         return StatsResponse(**stats)
     except Exception as e:
         logger.error(f"Error getting stats: {str(e)}")
