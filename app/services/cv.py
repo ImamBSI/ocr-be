@@ -1,19 +1,19 @@
 import logging
 
 from app.db.base import Record, Repositories
+from app.services.ai.extract import extract_cv, fallback_parse
+from app.services.ai.factory import get_ai_provider
 from app.services.file_storage import get_file_type
-from app.services.ocr import CVProcessingService
+from app.services.ocr import OCRService
 
 logger = logging.getLogger(__name__)
 
 
 class CVService:
-    """Service untuk processing dan persistence data candidate."""
-
     @staticmethod
-    def process_upload(repos: Repositories, upload: Record) -> Record:
+    async def process_upload(repos: Repositories, upload: Record) -> Record:
         """
-        Process CV dari upload record: extract text, parse, lalu upsert candidate.
+        Process CV dari upload record: extract text, parse (LLM/rule), lalu upsert candidate.
 
         Args:
             repos: Kumpulan repository storage
@@ -26,36 +26,42 @@ class CVService:
             raise ValueError("File path not found")
 
         file_type = get_file_type(upload.file_path)
-        parsed_data = CVProcessingService.process_cv_file(
-            upload.file_path, file_type
-        )
+        text = OCRService.extract_text(upload.file_path, file_type)
+        logger.info(f"Extracted {len(text)} characters from CV")
 
-        candidate = repos.candidates.get_by_email(parsed_data.get("email"))
+        provider = get_ai_provider()
+        if provider:
+            parsed = await extract_cv(provider, text)
+            if parsed is None:
+                parsed = fallback_parse(text)
+                parsed_by = "rule"
+            else:
+                parsed_by = "llm"
+        else:
+            parsed = fallback_parse(text)
+            parsed_by = "rule"
+
+        candidate = repos.candidates.get_by_email(parsed.email or "")
+
+        common_data = {
+            "name": parsed.name,
+            "phone": parsed.phone,
+            "experience_years": parsed.experience_years or 0,
+            "skills": parsed.skills,
+            "education": parsed.education,
+            "cv_text": text[:5000],
+            "summary": parsed.summary,
+            "parsed_by": parsed_by,
+        }
 
         if candidate:
-            candidate = repos.candidates.update(
-                candidate.id,
-                name=parsed_data.get("name", candidate.name),
-                phone=parsed_data.get("phone", candidate.phone),
-                experience_years=parsed_data.get("experience_years", 0),
-                skills=parsed_data.get("skills", []),
-                education=parsed_data.get("education"),
-                cv_text=parsed_data.get("cv_text"),
-                file_name=upload.file_name,
-                file_path=upload.file_path,
-                is_processed=1,
-            )
+            candidate = repos.candidates.update(candidate.id, **common_data)
             logger.info(f"Updated existing candidate: {candidate.id}")
         else:
             candidate = repos.candidates.create(
+                **common_data,
                 upload_id=upload.id,
-                name=parsed_data.get("name", "Unknown"),
-                email=parsed_data.get("email", ""),
-                phone=parsed_data.get("phone"),
-                experience_years=parsed_data.get("experience_years", 0),
-                skills=parsed_data.get("skills", []),
-                education=parsed_data.get("education"),
-                cv_text=parsed_data.get("cv_text"),
+                email=parsed.email or "",
                 file_name=upload.file_name,
                 file_path=upload.file_path,
                 is_processed=1,

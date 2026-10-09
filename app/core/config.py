@@ -55,6 +55,21 @@ class Settings(BaseSettings):
         default=100, validation_alias="MAX_RANKED_CANDIDATES"
     )
 
+    # ==================== AI / LLM Config ====================
+    AI_ENABLED: bool = Field(default=False, validation_alias="AI_ENABLED")
+    AI_PROVIDER: str = Field(default="openai", validation_alias="AI_PROVIDER")
+    AI_MODEL: str = Field(default="gpt-4o-mini", validation_alias="AI_MODEL")
+    AI_API_KEY: Optional[str] = Field(default=None, validation_alias="AI_API_KEY")
+    AI_BASE_URL: Optional[str] = Field(default=None, validation_alias="AI_BASE_URL")
+    AI_TEMPERATURE: float = Field(default=0.0, validation_alias="AI_TEMPERATURE")
+    AI_TIMEOUT: int = Field(default=60, validation_alias="AI_TIMEOUT")
+    AI_MAX_RETRIES: int = Field(default=3, validation_alias="AI_MAX_RETRIES")
+    AI_RETRY_BASE: float = Field(default=1.0, validation_alias="AI_RETRY_BASE")
+    AI_RETRY_MAX: float = Field(default=20.0, validation_alias="AI_RETRY_MAX")
+    AI_RETRY_JITTER: float = Field(default=0.5, validation_alias="AI_RETRY_JITTER")
+    # rule = rule-based, llm = LLM-only, hybrid = LLM + fallback rule
+    AI_SCORE_MODE: str = Field(default="hybrid", validation_alias="AI_SCORE_MODE")
+
     # ==================== API Config ====================
     DEFAULT_PAGE_SIZE: int = Field(
         default=20, validation_alias="DEFAULT_PAGE_SIZE"

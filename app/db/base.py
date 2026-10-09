@@ -121,6 +121,8 @@ class ScoreRepository(ABC):
         job_id: str,
         score: float,
         matched_criteria: Dict[str, float],
+        rationale: Optional[Dict[str, Optional[str]]] = None,
+        confidence: float = 1.0,
     ) -> Record: ...
 
     @abstractmethod

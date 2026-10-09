@@ -313,6 +313,8 @@ class SqlScoreRepository(ScoreRepository):
         job_id: str,
         score: float,
         matched_criteria: Dict[str, float],
+        rationale: Optional[Dict[str, Optional[str]]] = None,
+        confidence: float = 1.0,
     ) -> Record:
         db = self._session()
         try:
@@ -321,6 +323,8 @@ class SqlScoreRepository(ScoreRepository):
                 job_id=job_id,
                 score=score,
                 matched_criteria=matched_criteria,
+                rationale=rationale or {},
+                confidence=confidence,
             )
             db.add(score_obj)
             db.commit()

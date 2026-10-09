@@ -27,6 +27,7 @@ class Candidate(Base):
     # Extracted Data (JSON)
     skills = Column(JSON, default=list)
     cv_text = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
 
     # File Information
     file_name = Column(String(255), nullable=True)
@@ -35,6 +36,7 @@ class Candidate(Base):
     # Metadata
     is_processed = Column(Integer, default=0)
     processing_error = Column(Text, nullable=True)
+    parsed_by = Column(String(20), default="rule")
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(

@@ -25,6 +25,8 @@ def _build_scoring_response(score_obj, rank) -> ScoringResponse:
         score=score_obj.score,
         rank=rank,
         matched_criteria=score_obj.matched_criteria,
+        rationale=score_obj.rationale,
+        confidence=score_obj.confidence,
         status="success",
         created_at=score_obj.created_at,
     )
@@ -53,7 +55,7 @@ async def score_batch(
                 failed_count += 1
                 continue
 
-            score_obj = ScoringService.score_and_save(repos, candidate, job)
+            score_obj = await ScoringService.score_and_save(repos, candidate, job)
             ranking = ScoringService.get_candidate_ranking(
                 repos, candidate_id, body.job_requirement_id
             )
@@ -92,7 +94,7 @@ async def score_candidate(
         if not job:
             raise HTTPException(status_code=404, detail="Job requirement not found")
 
-        score_obj = ScoringService.score_and_save(repos, candidate, job)
+        score_obj = await ScoringService.score_and_save(repos, candidate, job)
         ranking = ScoringService.get_candidate_ranking(
             repos, candidate_id, body.job_requirement_id
         )
@@ -142,9 +144,13 @@ async def get_ranked_candidates(
                         is_processed=bool(candidate.is_processed),
                         created_at=candidate.created_at,
                         updated_at=candidate.updated_at,
+                        summary=candidate.summary,
+                        parsed_by=candidate.parsed_by,
                         score=score_obj.score,
                         ranking=score_obj.rank or 0,
                         matched_criteria=score_obj.matched_criteria,
+                        rationale=score_obj.rationale,
+                        confidence=score_obj.confidence,
                     )
                 )
 

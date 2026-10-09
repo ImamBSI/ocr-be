@@ -27,6 +27,8 @@ class ScoringResponse(BaseModel):
     score: float
     rank: Optional[int] = None
     matched_criteria: Dict[str, float]
+    rationale: Dict[str, Optional[str]] = {}
+    confidence: float = 1.0
     status: str = "success"
     message: Optional[str] = None
     created_at: datetime
@@ -47,3 +49,5 @@ class RankedCandidateResponse(CandidateResponse):
     score: float
     ranking: int
     matched_criteria: Dict[str, float]
+    rationale: Dict[str, Optional[str]] = {}
+    confidence: float = 1.0

@@ -31,6 +31,8 @@ class Score(Base):
     score = Column(Float, default=0.0)
     rank = Column(Integer, nullable=True)
     matched_criteria = Column(JSON, default=dict)
+    rationale = Column(JSON, default=dict)
+    confidence = Column(Float, default=1.0)
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(

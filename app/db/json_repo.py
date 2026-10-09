@@ -221,6 +221,8 @@ class JsonScoreRepository(ScoreRepository):
         job_id: str,
         score: float,
         matched_criteria: Dict[str, float],
+        rationale: Optional[Dict[str, Optional[str]]] = None,
+        confidence: float = 1.0,
     ) -> Record:
         now = _now()
         rec = self.store.insert(
@@ -230,6 +232,8 @@ class JsonScoreRepository(ScoreRepository):
                 "score": score,
                 "rank": None,
                 "matched_criteria": matched_criteria,
+                "rationale": rationale or {},
+                "confidence": confidence,
                 "created_at": now,
                 "updated_at": now,
             }

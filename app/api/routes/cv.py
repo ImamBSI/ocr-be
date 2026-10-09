@@ -37,7 +37,7 @@ async def process_cv_batch(
                 failed_count += 1
                 continue
 
-            candidate = CVService.process_upload(repos, upload)
+            candidate = await CVService.process_upload(repos, upload)
             candidates.append(candidate)
             processed_count += 1
 
@@ -68,7 +68,7 @@ async def process_cv(
         if not upload:
             raise HTTPException(status_code=404, detail="Upload not found")
 
-        candidate = CVService.process_upload(repos, upload)
+        candidate = await CVService.process_upload(repos, upload)
 
         return ProcessCVResponse(
             id=candidate.id,

@@ -104,17 +104,273 @@ class OCRService:
 class CVParsingService:
     """Service untuk parsing CV data dari extracted text."""
 
+    # Header section yang sering tertangkap sebagai nama oleh heuristic lama
+    _SECTION_HEADERS = {
+        "education",
+        "experience",
+        "work experience",
+        "professional experience",
+        "skills",
+        "technical skills",
+        "profile",
+        "professional summary",
+        "summary",
+        "objective",
+        "about",
+        "contact",
+        "projects",
+        "certifications",
+        "languages",
+        "achievements",
+        "awards",
+        "references",
+        "qualifications",
+        "interests",
+        "publications",
+        "personal information",
+        "pendidikan",
+        "pengalaman",
+        "pengalaman kerja",
+        "keahlian",
+        "keterampilan",
+        "ringkasan",
+        "profil",
+        "tentang",
+        "proyek",
+        "sertifikasi",
+        "bahasa",
+    }
+
+    # Kata-kata yang jarang muncul di baris nama; dipakai untuk menyaring
+    # baris seperti "Bachelor of Computer Science" atau "Software Engineer".
+    _NON_NAME_WORDS = {
+        "bachelor",
+        "master",
+        "phd",
+        "doctorate",
+        "degree",
+        "diploma",
+        "computer",
+        "science",
+        "informatics",
+        "engineering",
+        "technology",
+        "information",
+        "system",
+        "systems",
+        "university",
+        "college",
+        "school",
+        "academy",
+        "institute",
+        "institut",
+        "software",
+        "engineer",
+        "developer",
+        "programmer",
+        "analyst",
+        "manager",
+        "consultant",
+        "specialist",
+        "lead",
+        "senior",
+        "junior",
+        "summary",
+        "profile",
+        "objective",
+        "experience",
+        "work",
+        "employment",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+        "languages",
+        "references",
+        "contact",
+        "about",
+        "professional",
+        "personal",
+        "years",
+        "year",
+        "month",
+        "months",
+        "pengalaman",
+        "kerja",
+        "tahun",
+        "bulan",
+        "pendidikan",
+        "keahlian",
+        "keterampilan",
+        "profil",
+        "ringkasan",
+        "s1",
+        "s2",
+        "s3",
+        "d3",
+        "d4",
+        "smk",
+        "sma",
+        "of",
+        "in",
+        "and",
+        "the",
+        "at",
+        "with",
+        "for",
+    }
+
+    # Sinonim skill → canonical; multi-word didahulukan saat pencarian
+    _SKILL_SYNONYMS = {
+        # languages
+        "python": "python",
+        "py": "python",
+        "javascript": "javascript",
+        "js": "javascript",
+        "typescript": "typescript",
+        "ts": "typescript",
+        "java": "java",
+        "c++": "c++",
+        "cpp": "c++",
+        "c#": "c#",
+        "csharp": "c#",
+        "php": "php",
+        "ruby": "ruby",
+        "go": "go",
+        "golang": "go",
+        "rust": "rust",
+        "sql": "sql",
+        # frameworks
+        "django": "django",
+        "flask": "flask",
+        "fastapi": "fastapi",
+        "fast api": "fastapi",
+        "react": "react",
+        "reactjs": "react",
+        "vue": "vue",
+        "vuejs": "vue",
+        "angular": "angular",
+        "spring": "spring",
+        "spring boot": "spring boot",
+        "springboot": "spring boot",
+        "asp.net": "asp.net",
+        "express": "express",
+        "expressjs": "express",
+        "node": "node.js",
+        "nodejs": "node.js",
+        "node.js": "node.js",
+        "next.js": "next.js",
+        "nextjs": "next.js",
+        "nestjs": "nestjs",
+        "laravel": "laravel",
+        "bootstrap": "bootstrap",
+        "tailwind css": "tailwind css",
+        "tailwind": "tailwind css",
+        "html": "html",
+        "css": "css",
+        "sass": "sass",
+        "less": "less",
+        "jquery": "jquery",
+        "webpack": "webpack",
+        "vite": "vite",
+        # databases
+        "mysql": "mysql",
+        "postgresql": "postgresql",
+        "postgres": "postgresql",
+        "mongodb": "mongodb",
+        "redis": "redis",
+        "elasticsearch": "elasticsearch",
+        "dynamodb": "dynamodb",
+        "oracle": "oracle",
+        # tools / cloud
+        "git": "git",
+        "docker": "docker",
+        "kubernetes": "kubernetes",
+        "k8s": "kubernetes",
+        "jenkins": "jenkins",
+        "ci/cd": "ci/cd",
+        "cicd": "ci/cd",
+        "aws": "aws",
+        "amazon web services": "aws",
+        "gcp": "gcp",
+        "google cloud": "gcp",
+        "azure": "azure",
+        "linux": "linux",
+        # data / ml
+        "pandas": "pandas",
+        "numpy": "numpy",
+        "scikit-learn": "scikit-learn",
+        "tensorflow": "tensorflow",
+        "pytorch": "pytorch",
+        "spark": "spark",
+        "hadoop": "hadoop",
+        # others
+        "graphql": "graphql",
+        "rest api": "rest api",
+        "restful": "rest api",
+        "openapi": "openapi",
+        "swagger": "swagger",
+        "tableau": "tableau",
+        "power bi": "power bi",
+        "powerbi": "power bi",
+        "excel": "excel",
+    }
+
+    @staticmethod
+    def _is_likely_name(line: str) -> bool:
+        """Heuristic sederhana untuk membedakan nama dengan header/URL."""
+        stripped = line.strip()
+        if not stripped:
+            return False
+        if len(stripped) < 3 or len(stripped) > 80:
+            return False
+
+        lower = stripped.lower()
+        if lower in CVParsingService._SECTION_HEADERS:
+            return False
+
+        # Lewati baris yang mengandung URL/email/telepon/simbol CV
+        if any(token in lower for token in [
+            "|", "@", "http", "www", "github.com", "linkedin", "portfolio",
+            "tel:", "+", ":", "/",
+        ]):
+            return False
+
+        if re.search(r"\d", stripped):
+            return False
+
+        # Minimal 50% karakter alfabet
+        if sum(1 for c in stripped if c.isalpha()) < len(stripped) * 0.5:
+            return False
+
+        words = stripped.split()
+        # Satu kata UPPERCASE sering header section
+        if len(words) == 1 and stripped.isupper():
+            return False
+
+        # Lewati baris yang mengandung kata-kata non-nama
+        if any(w.lower() in CVParsingService._NON_NAME_WORDS for w in words):
+            return False
+
+        return True
+
     @staticmethod
     def extract_name(text: str) -> str:
-        """Extract nama dari CV text."""
-        lines = text.split("\n")[:5]
+        """Extract nama dari CV text dengan filter header section."""
+        lines = text.split("\n")
 
+        # Coba 20 baris pertama, lewati header
+        for line in lines[:20]:
+            if CVParsingService._is_likely_name(line):
+                return line.strip()[:100]
+
+        # Cari di seluruh dokumen
         for line in lines:
-            line = line.strip()
-            if len(line) > 3 and len(line) < 100 and line.isupper():
-                return line
+            if CVParsingService._is_likely_name(line):
+                return line.strip()[:100]
 
-        for line in text.split("\n"):
+        # Fallback terakhir: baris pertama yang tidak kosong
+        for line in lines:
             if line.strip():
                 return line.strip()[:100]
 
@@ -146,11 +402,16 @@ class CVParsingService:
 
     @staticmethod
     def extract_experience_years(text: str) -> int:
-        """Extract pengalaman kerja (tahun) dari CV text."""
+        """Extract pengalaman kerja (tahun) dari CV text (EN & ID)."""
         patterns = [
+            # English
             r"(\d+)\s+(?:years?|yrs?)\s+(?:of\s+)?(?:work|experience)",
             r"(?:work|experience).*?(\d+)\s+(?:years?|yrs?)",
-            r"(\d+)\s+year",
+            r"(\d+)\s+years?",
+            # Indonesian
+            r"(\d+)\s+(?:tahun|thn).*?(?:pengalaman|kerja)",
+            r"(?:pengalaman|kerja).*?(\d+)\s+(?:tahun|thn)",
+            r"pengalaman\s+(?:kerja\s+)?(\d+)\s+(?:tahun|thn)",
         ]
 
         for pattern in patterns:
@@ -167,7 +428,7 @@ class CVParsingService:
 
     @staticmethod
     def extract_education(text: str) -> str:
-        """Extract informasi pendidikan dari CV text."""
+        """Extract informasi pendidikan dari CV text (EN & ID)."""
         education_keywords = [
             "bachelor",
             "master",
@@ -180,6 +441,20 @@ class CVParsingService:
             "degree",
             "university",
             "college",
+            "s1",
+            "s2",
+            "s3",
+            "d3",
+            "d4",
+            "sarjana",
+            "magister",
+            "doktor",
+            "smk",
+            "sma",
+            "sekolah",
+            "universitas",
+            "institut",
+            "akademi",
         ]
 
         lines = text.split("\n")
@@ -192,40 +467,23 @@ class CVParsingService:
 
     @staticmethod
     def extract_skills(text: str) -> List[str]:
-        """Extract skills dari CV text."""
-        common_skills = {
-            "languages": [
-                "python", "javascript", "java", "c++", "c#", "php",
-                "ruby", "go", "rust", "typescript", "sql",
-            ],
-            "frameworks": [
-                "django", "flask", "fastapi", "react", "vue", "angular",
-                "spring", "asp.net", "express",
-            ],
-            "databases": [
-                "mysql", "postgresql", "mongodb", "redis", "elasticsearch",
-                "dynamodb", "oracle",
-            ],
-            "tools": [
-                "git", "docker", "kubernetes", "jenkins", "ci/cd", "aws",
-                "gcp", "azure", "linux",
-            ],
-            "data": [
-                "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch",
-                "spark", "hadoop",
-            ],
-        }
-
-        found_skills = []
+        """Extract skills dari CV text dengan normalisasi sinonim."""
         text_lower = text.lower()
+        found = []
 
-        for category_skills in common_skills.values():
-            for skill in category_skills:
-                if re.search(r"\b" + skill + r"\b", text_lower):
-                    if skill not in found_skills:
-                        found_skills.append(skill)
+        # Urutkan dari sinonim terpanjang supaya "fast api" tidak kalah dari "fast"
+        synonyms = sorted(
+            CVParsingService._SKILL_SYNONYMS.keys(), key=len, reverse=True
+        )
 
-        return found_skills[:20]
+        for synonym in synonyms:
+            pattern = r"(?<!\w)" + re.escape(synonym) + r"(?!\w)"
+            if re.search(pattern, text_lower):
+                canonical = CVParsingService._SKILL_SYNONYMS[synonym]
+                if canonical not in found:
+                    found.append(canonical)
+
+        return found[:25]
 
     @staticmethod
     def parse_cv(text: str) -> Dict:

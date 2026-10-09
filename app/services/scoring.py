@@ -1,14 +1,50 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
+from app.core.config import settings
 from app.db.base import Record, Repositories
 from app.models.enums import ScoringCriteriaType
+from app.services.ai.base import AIProvider, CriteriaScore
+from app.services.ai.factory import get_ai_provider
+from app.services.ai.score import score_criteria
 
 logger = logging.getLogger(__name__)
 
 
 class ScoringService:
-    """Service untuk scoring candidates berdasarkan job requirements."""
+    @staticmethod
+    def _rule_criterion_score(
+        candidate: Record, criteria: Record
+    ) -> float:
+        ctype = getattr(criteria, "type", None)
+        keywords = getattr(criteria, "keywords", None) or []
+
+        if ctype == ScoringCriteriaType.SKILL:
+            return ScoringService.calculate_skill_match_score(
+                candidate.skills, keywords
+            )
+
+        if ctype == ScoringCriteriaType.EXPERIENCE:
+            return ScoringService.calculate_experience_score(
+                candidate.experience_years,
+                getattr(criteria, "min_value", None),
+                getattr(criteria, "max_value", None),
+            )
+
+        if ctype == ScoringCriteriaType.EDUCATION:
+            return ScoringService.calculate_education_score(
+                candidate.education, keywords
+            )
+
+        if ctype == ScoringCriteriaType.KEYWORD:
+            return ScoringService.calculate_keyword_match_score(
+                candidate.cv_text or "", keywords
+            )
+
+        if criteria.type == ScoringCriteriaType.CUSTOM:
+            return 50.0
+
+        return 0.0
 
     @staticmethod
     def calculate_skill_match_score(
@@ -32,8 +68,8 @@ class ScoringService:
     @staticmethod
     def calculate_experience_score(
         candidate_years: int,
-        criteria_min: float = None,
-        criteria_max: float = None,
+        criteria_min: Optional[float] = None,
+        criteria_max: Optional[float] = None,
     ) -> float:
         if criteria_min is None:
             criteria_min = 0
@@ -52,7 +88,7 @@ class ScoringService:
 
     @staticmethod
     def calculate_education_score(
-        candidate_education: str, criteria_keywords: List[str] = None
+        candidate_education: Optional[str], criteria_keywords: Optional[List[str]] = None
     ) -> float:
         if not candidate_education:
             return 0.0
@@ -80,7 +116,9 @@ class ScoringService:
         return 50.0
 
     @staticmethod
-    def calculate_keyword_match_score(cv_text: str, keywords: List[str]) -> float:
+    def calculate_keyword_match_score(
+        cv_text: Optional[str], keywords: List[str]
+    ) -> float:
         if not keywords or not cv_text:
             return 0.0
 
@@ -93,69 +131,96 @@ class ScoringService:
         return min(score, 100.0)
 
     @staticmethod
-    def score_candidate(
-        candidate: Record, job_requirement: Record
-    ) -> Tuple[float, Dict[str, float]]:
-        logger.info(f"Scoring candidate {candidate.id} for job {job_requirement.id}")
+    async def score_candidate(
+        candidate: Record,
+        job_requirement: Record,
+        ai_provider: Optional[AIProvider] = None,
+    ) -> Tuple[float, Dict[str, float], Dict[str, Optional[str]], float]:
+        """
+        Hitung skor kandidat.
 
-        matched_criteria = {}
-        total_weight = 0
-        weighted_score = 0
+        Returns:
+            (final_score, matched_criteria, rationale, average_confidence)
+        """
+        logger.info(
+            f"Scoring candidate {candidate.id} for job {job_requirement.id}"
+        )
+
+        mode = settings.AI_SCORE_MODE.lower()
+        use_llm = ai_provider is not None and mode in ("llm", "hybrid")
+        ai_scores: Optional[Dict[str, CriteriaScore]] = None
+        if use_llm:
+            ai_scores = await score_criteria(ai_provider, candidate, job_requirement)
+
+        matched_criteria: Dict[str, float] = {}
+        rationale: Dict[str, Optional[str]] = {}
+        confidences: List[float] = []
 
         for criteria in job_requirement.criteria:
-            criterion_score = 0
+            cname = getattr(criteria, "name", "unknown")
+            cweight = getattr(criteria, "weight", 1.0) or 1.0
 
-            if criteria.type == ScoringCriteriaType.SKILL:
-                keywords = criteria.keywords or []
-                criterion_score = ScoringService.calculate_skill_match_score(
-                    candidate.skills, keywords
+            ai_score: Optional[CriteriaScore] = None
+            if ai_scores:
+                ai_score = ai_scores.get(cname)
+
+            use_ai_score = bool(
+                ai_score
+                and (mode == "llm" or ai_score.confidence >= 0.5)
+            )
+
+            if use_ai_score:
+                criterion_score = ai_score.score
+                rationale[cname] = ai_score.evidence
+                confidences.append(ai_score.confidence)
+            else:
+                criterion_score = ScoringService._rule_criterion_score(
+                    candidate, criteria
                 )
+                rationale[cname] = None
+                confidences.append(1.0)
 
-            elif criteria.type == ScoringCriteriaType.EXPERIENCE:
-                criterion_score = ScoringService.calculate_experience_score(
-                    candidate.experience_years,
-                    criteria.min_value,
-                    criteria.max_value,
-                )
+            matched_criteria[cname] = criterion_score
 
-            elif criteria.type == ScoringCriteriaType.EDUCATION:
-                keywords = criteria.keywords or []
-                criterion_score = ScoringService.calculate_education_score(
-                    candidate.education, keywords
-                )
-
-            elif criteria.type == ScoringCriteriaType.KEYWORD:
-                keywords = criteria.keywords or []
-                criterion_score = ScoringService.calculate_keyword_match_score(
-                    candidate.cv_text or "", keywords
-                )
-
-            elif criteria.type == ScoringCriteriaType.CUSTOM:
-                criterion_score = 50.0
-
-            matched_criteria[criteria.name] = criterion_score
-
-            weight = criteria.weight or 1.0
-            total_weight += weight
-            weighted_score += criterion_score * weight
+        total_weight = sum(
+            (getattr(criteria, "weight", 1.0) or 1.0)
+            for criteria in job_requirement.criteria
+        )
+        weighted_score = sum(
+            matched_criteria[getattr(criteria, "name", "unknown")]
+            * (getattr(criteria, "weight", 1.0) or 1.0)
+            for criteria in job_requirement.criteria
+        )
 
         final_score = (
             weighted_score / total_weight if total_weight > 0 else 0.0
         )
         final_score = max(0, min(final_score, 100.0))
 
-        logger.info(
-            f"Candidate score: {final_score:.2f}, criteria scores: {matched_criteria}"
+        avg_confidence = (
+            sum(confidences) / len(confidences) if confidences else 1.0
         )
 
-        return final_score, matched_criteria
+        logger.info(
+            f"Candidate score: {final_score:.2f}, "
+            f"confidence: {avg_confidence:.2f}, "
+            f"criteria scores: {matched_criteria}"
+        )
+
+        return final_score, matched_criteria, rationale, avg_confidence
 
     @staticmethod
-    def score_and_save(
+    async def score_and_save(
         repos: Repositories, candidate: Record, job_requirement: Record
     ) -> Record:
-        score_value, matched_criteria = ScoringService.score_candidate(
-            candidate, job_requirement
+        ai_provider = get_ai_provider()
+        (
+            score_value,
+            matched_criteria,
+            rationale,
+            confidence,
+        ) = await ScoringService.score_candidate(
+            candidate, job_requirement, ai_provider
         )
 
         existing_score = repos.scores.get(candidate.id, job_requirement.id)
@@ -167,6 +232,8 @@ class ScoringService:
             job_id=job_requirement.id,
             score=score_value,
             matched_criteria=matched_criteria,
+            rationale=rationale,
+            confidence=confidence,
         )
 
         return score_obj

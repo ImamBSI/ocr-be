@@ -40,6 +40,8 @@ class CandidateResponse(CandidateRequest):
     file_name: Optional[str] = None
     file_path: Optional[str] = None
     is_processed: bool
+    summary: Optional[str] = None
+    parsed_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -50,6 +52,8 @@ class CandidateDetailResponse(CandidateResponse):
     score: Optional[float] = None
     ranking: Optional[int] = None
     matched_criteria: Optional[Dict[str, float]] = None
+    rationale: Optional[Dict[str, Optional[str]]] = None
+    confidence: Optional[float] = None
 
 
 class CandidatePaginatedResponse(BaseModel):
