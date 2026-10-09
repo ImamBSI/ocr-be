@@ -10,8 +10,10 @@ _DEFAULT_BASE_URLS = {
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
     "ollama": "http://localhost:11434/v1",
     "azure": None,  # Azure wajib mengisi AI_BASE_URL sendiri
-    "opencode": "https://opencode.ai/zen/v1",
-    "opencode-go": "https://opencode.ai/zen/v1",
+    # OpenCode Console (service account key oc_sk_*): Inference API OpenAI Chat
+    "opencode": "https://opencode.ai/inference/openai/v1",
+    "opencode-go": "https://opencode.ai/inference/openai/v1",
+    "opencode-zen": "https://opencode.ai/zen/v1",
 }
 
 

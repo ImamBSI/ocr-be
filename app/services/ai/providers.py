@@ -82,6 +82,12 @@ class OpenAICompatibleProvider(AIProvider):
         max_attempts = self.max_retries + 1
         last_error: Exception | None = None
 
+        def _raise_final() -> None:
+            msg = f"AI request failed after {max_attempts} attempts: {last_error}"
+            if isinstance(last_error, httpx.HTTPStatusError) and last_error.response is not None:
+                msg += f" | body: {last_error.response.text[:300]}"
+            raise AIError(msg) from last_error
+
         for attempt in range(max_attempts):
             body = dict(base_body)
             if use_response_format:
@@ -103,6 +109,7 @@ class OpenAICompatibleProvider(AIProvider):
             except httpx.HTTPStatusError as exc:
                 last_error = exc
                 status = exc.response.status_code
+                body_text = exc.response.text[:300]
 
                 # 400 karena response_format tidak didukung → coba sekali tanpa itu
                 if status == 400 and use_response_format:
@@ -115,7 +122,7 @@ class OpenAICompatibleProvider(AIProvider):
                 if status not in _RETRYABLE_STATUS:
                     raise AIError(
                         f"AI request failed (HTTP {status}) for model "
-                        f"'{self.model}': {exc}"
+                        f"'{self.model}': {exc} | body: {body_text}"
                     ) from exc
 
             except (httpx.TransportError, json.JSONDecodeError, KeyError, ValidationError) as exc:
@@ -132,6 +139,4 @@ class OpenAICompatibleProvider(AIProvider):
                 )
                 await asyncio.sleep(delay)
 
-        raise AIError(
-            f"AI request failed after {max_attempts} attempts: {last_error}"
-        ) from last_error
+        _raise_final()
