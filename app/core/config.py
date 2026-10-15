@@ -79,6 +79,11 @@ class Settings(BaseSettings):
         default=300, validation_alias="REQUEST_TIMEOUT"
     )
 
+    # ==================== Security ====================
+    # Jika diisi, semua endpoint /api/* wajib menyertakan header X-API-Key.
+    # Kosong = autentikasi dinonaktifkan (hanya untuk pengembangan lokal).
+    API_KEY: Optional[str] = Field(default=None, validation_alias="API_KEY")
+
     # ==================== Logging Config ====================
     LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
