@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+from app.core.config import settings
 from app.services.ai.base import AIProvider, ParsedCV
 from app.services.ocr import CVParsingService
 
@@ -18,7 +19,7 @@ Return valid JSON only, no markdown."""
 
 
 def _build_user_prompt(text: str) -> str:
-    return f"Extract structured data from this CV:\n\n{text[:4500]}"
+    return f"Extract structured data from this CV:\n\n{text[:settings.AI_MAX_TEXT_CHARS]}"
 
 
 async def extract_cv(provider: AIProvider, text: str) -> Optional[ParsedCV]:

@@ -35,9 +35,13 @@ class Settings(BaseSettings):
 
     # ==================== File Upload Config ====================
     UPLOAD_DIR: str = Field(default="./uploads", validation_alias="UPLOAD_DIR")
-    ALLOWED_FILE_TYPES: list = ["pdf", "docx"]
+    ALLOWED_FILE_TYPES: list = ["pdf", "docx", "jpg", "jpeg", "png"]
     MAX_FILE_SIZE: int = Field(
         default=10 * 1024 * 1024, validation_alias="MAX_FILE_SIZE"
+    )
+    # Batas teks CV yang disimpan (untuk parsing & scoring)
+    MAX_CV_TEXT_CHARS: int = Field(
+        default=20000, validation_alias="MAX_CV_TEXT_CHARS"
     )
 
     # ==================== OCR Config ====================
@@ -46,6 +50,14 @@ class Settings(BaseSettings):
         default=None, validation_alias="TESSERACT_PATH"
     )
     PDF_DPI: int = Field(default=300, validation_alias="PDF_DPI")
+    # Bahasa Tesseract, mis. "eng" atau "eng+ind"
+    OCR_LANG: str = Field(default="eng", validation_alias="OCR_LANG")
+    # Page segmentation mode Tesseract (4 = single column, 6 = uniform block)
+    OCR_PSM: int = Field(default=4, validation_alias="OCR_PSM")
+    # Preprocessing gambar sebelum OCR (grayscale + binarize bila OpenCV ada)
+    OCR_USE_PREPROCESS: bool = Field(
+        default=True, validation_alias="OCR_USE_PREPROCESS"
+    )
 
     # ==================== Scoring Config ====================
     MIN_SCORE_THRESHOLD: float = Field(
@@ -67,6 +79,10 @@ class Settings(BaseSettings):
     AI_RETRY_BASE: float = Field(default=1.0, validation_alias="AI_RETRY_BASE")
     AI_RETRY_MAX: float = Field(default=20.0, validation_alias="AI_RETRY_MAX")
     AI_RETRY_JITTER: float = Field(default=0.5, validation_alias="AI_RETRY_JITTER")
+    # Batas teks CV yang dikirim ke LLM
+    AI_MAX_TEXT_CHARS: int = Field(
+        default=20000, validation_alias="AI_MAX_TEXT_CHARS"
+    )
     # rule = rule-based, llm = LLM-only, hybrid = LLM + fallback rule
     AI_SCORE_MODE: str = Field(default="hybrid", validation_alias="AI_SCORE_MODE")
 

@@ -46,6 +46,12 @@ python-docx==0.8.11
 # Read and extract text from PDF files
 PyPDF2==3.0.1
 
+# Better text ordering for multi-column PDFs (opsional, direkomendasikan)
+pdfplumber==0.11.4
+
+# Image preprocessing untuk OCR (deskew/threshold). Opsional.
+opencv-python-headless==4.10.0.84
+
 # ==================== DATA PROCESSING ====================
 # Numerical computing library
 numpy==1.26.2

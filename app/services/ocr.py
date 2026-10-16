@@ -1,67 +1,182 @@
 import logging
 import re
-from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import PyPDF2
 import pytesseract
 from docx import Document
 from pdf2image import convert_from_path
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Dependensi opsional — kalau tidak ada, fitur terkait dilewati (graceful)
+try:
+    import pdfplumber
+except Exception:  # pragma: no cover
+    pdfplumber = None
+
+try:
+    import cv2
+    import numpy as np
+except Exception:  # pragma: no cover
+    cv2 = None
+    np = None
+
+
+IMAGE_TYPES = {"jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff"}
+
+
+def _configure_tesseract() -> None:
+    """Terapkan path Tesseract dari settings bila diisi."""
+    if settings.TESSERACT_PATH:
+        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_PATH
+
+
+def _tesseract_kwargs() -> Dict:
+    return {
+        "lang": settings.OCR_LANG,
+        "config": f"--oem 3 --psm {settings.OCR_PSM}",
+    }
+
+
+def _looks_usable(text: Optional[str]) -> bool:
+    """
+    Heuristic apakah teks hasil ekstraksi layak dipakai.
+
+    Banyak PDF scan punya 'text layer sampah' (karakter acak) yang membuat
+    PyPDF2 mengembalikan teks non-kosong tapi tidak berguna. Fungsi ini
+    mendeteksi kondisi itu supaya OCR fallback benar-benar dijalankan.
+    """
+    if not text:
+        return False
+
+    stripped = text.strip()
+    if len(stripped) < 30:
+        return False
+
+    words = re.findall(r"[A-Za-z]{2,}", stripped)
+    if len(words) < 5:
+        return False
+
+    alnum = sum(1 for c in stripped if c.isalnum())
+    if alnum / max(len(stripped), 1) < 0.5:
+        return False
+
+    if stripped.count("\ufffd") > 5:
+        return False
+
+    return True
+
+
+def _preprocess_image(image: Image.Image) -> Image.Image:
+    """Grayscale + binarize (bila OpenCV tersedia) untuk memperbaiki akurasi OCR."""
+    if not settings.OCR_USE_PREPROCESS:
+        return image
+
+    gray = ImageOps.grayscale(image)
+
+    if cv2 is not None and np is not None:
+        arr = np.array(gray)
+        arr = cv2.medianBlur(arr, 3)
+        arr = cv2.adaptiveThreshold(
+            arr,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            31,
+            15,
+        )
+        return Image.fromarray(arr)
+
+    return gray
+
+
+def _ocr_image(image: Image.Image) -> str:
+    """OCR satu gambar (dengan preprocess + konfigurasi Tesseract)."""
+    _configure_tesseract()
+    processed = _preprocess_image(image)
+    try:
+        return pytesseract.image_to_string(processed, **_tesseract_kwargs())
+    except pytesseract.TesseractNotFoundError as exc:
+        raise RuntimeError(
+            "Tesseract tidak ditemukan. Install Tesseract atau set TESSERACT_PATH."
+        ) from exc
 
 
 class OCRService:
     @staticmethod
     def extract_text_from_pdf(file_path: str) -> str:
         """
-        Extract text dari PDF file.
+        Extract text dari PDF.
 
-        Args:
-            file_path: Path ke PDF file
-
-        Returns:
-            Extracted text
+        Urutan: pdfplumber → PyPDF2 → (bila teks tidak layak) OCR Tesseract.
         """
-        try:
-            logger.info(f"Extracting text from PDF: {file_path}")
+        logger.info(f"Extracting text from PDF: {file_path}")
+        text = ""
 
-            text = ""
+        # 1) pdfplumber (urutan teks antar-kolom lebih baik) bila tersedia
+        if pdfplumber is not None:
+            try:
+                with pdfplumber.open(file_path) as pdf:
+                    text = "\n".join(
+                        (page.extract_text() or "") for page in pdf.pages
+                    )
+            except Exception as e:
+                logger.warning(f"pdfplumber extraction failed: {e}")
 
-            # Coba PyPDF2 terlebih dahulu (faster untuk text-based PDF)
+        # 2) PyPDF2 sebagai alternatif/pelengkap
+        if not _looks_usable(text):
             try:
                 with open(file_path, "rb") as file:
                     pdf_reader = PyPDF2.PdfReader(file)
-                    for page in pdf_reader.pages:
-                        text += page.extract_text() + "\n"
-
-                if text.strip():
-                    return text
+                    pypdf_text = "\n".join(
+                        (page.extract_text() or "") for page in pdf_reader.pages
+                    )
+                if len(pypdf_text) > len(text):
+                    text = pypdf_text
             except Exception as e:
-                logger.warning(
-                    f"PyPDF2 extraction failed: {e}, trying OCR..."
-                )
+                logger.warning(f"PyPDF2 extraction failed: {e}")
 
-            # Fallback ke OCR jika PDF text-based extraction gagal (scanned PDF)
-            images = convert_from_path(
-                file_path,
-                dpi=settings.PDF_DPI,
-                first_page=1,
-                last_page=None,
-            )
+        # 3) Kalau teks sudah layak, selesai (tanpa OCR)
+        if _looks_usable(text):
+            return text
 
-            for i, image in enumerate(images):
-                logger.info(f"Processing PDF page {i + 1}")
-                page_text = pytesseract.image_to_string(image)
-                text += page_text + "\n"
-
-            return text.strip()
-
+        # 4) Fallback OCR untuk PDF scan / text layer sampah
+        logger.info("Text layer tidak layak → menjalankan OCR fallback")
+        try:
+            images = convert_from_path(file_path, dpi=settings.PDF_DPI)
         except Exception as e:
-            logger.error(f"Error extracting text from PDF: {str(e)}")
+            logger.error(f"pdf2image gagal (Poppler terpasang?): {e}")
+            if text.strip():
+                return text
+            raise RuntimeError(
+                "Gagal render PDF untuk OCR. Pastikan Poppler terpasang "
+                "(mis. poppler-utils) atau set path-nya."
+            ) from e
+
+        ocr_parts: List[str] = []
+        for i, image in enumerate(images, start=1):
+            logger.info(f"OCR PDF page {i}/{len(images)}")
+            try:
+                ocr_parts.append(_ocr_image(image))
+            except Exception as e:
+                logger.error(f"OCR halaman {i} gagal: {e}")
+
+        ocr_text = "\n".join(ocr_parts).strip()
+        return ocr_text or text
+
+    @staticmethod
+    def extract_text_from_image(file_path: str) -> str:
+        """Extract text dari file gambar (JPG/PNG) menggunakan OCR."""
+        logger.info(f"Extracting text from image: {file_path}")
+        try:
+            with Image.open(file_path) as image:
+                return _ocr_image(image).strip()
+        except Exception as e:
+            logger.error(f"Error extracting text from image: {str(e)}")
             raise
 
     @staticmethod
@@ -92,13 +207,15 @@ class OCRService:
 
     @staticmethod
     def extract_text(file_path: str, file_type: str) -> str:
-        """Extract text dari file berdasarkan tipe ('pdf' atau 'docx')."""
-        if file_type.lower() == "pdf":
+        """Extract text dari file berdasarkan tipe (pdf/docx/gambar)."""
+        ftype = file_type.lower()
+        if ftype == "pdf":
             return OCRService.extract_text_from_pdf(file_path)
-        elif file_type.lower() == "docx":
+        if ftype == "docx":
             return OCRService.extract_text_from_docx(file_path)
-        else:
-            raise ValueError(f"Unsupported file type: {file_type}")
+        if ftype in IMAGE_TYPES:
+            return OCRService.extract_text_from_image(file_path)
+        raise ValueError(f"Unsupported file type: {file_type}")
 
 
 class CVParsingService:

@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Optional
 
+from app.core.config import settings
 from app.db.base import Record
 from app.services.ai.base import AIProvider, CriteriaScoresResponse
 
@@ -17,8 +18,8 @@ Be strict and objective. Return valid JSON only, no markdown."""
 
 
 def _build_user_prompt(candidate: Record, job: Record) -> str:
-    lines = ["=== CV TEXT ===", candidate.cv_text or "(no text)"]
-    lines.append("\n=== JOB CRITERIA ===")
+    # Kriteria ditaruh lebih dulu supaya tidak terpotong saat CV panjang.
+    lines = ["=== JOB CRITERIA ==="]
 
     for criterion in job.criteria:
         ctype = getattr(criterion, "type", "custom")
@@ -39,7 +40,10 @@ def _build_user_prompt(candidate: Record, job: Record) -> str:
             f"- {criterion.name} ({', '.join(detail_parts)}). {description}".strip()
         )
 
-    return "\n".join(lines)[:6000]
+    criteria_block = "\n".join(lines)
+    cv_text = (candidate.cv_text or "(no text)")[: settings.AI_MAX_TEXT_CHARS]
+
+    return f"{criteria_block}\n\n=== CV TEXT ===\n{cv_text}"
 
 
 async def score_criteria(

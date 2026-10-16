@@ -1,5 +1,6 @@
 import logging
 
+from app.core.config import settings
 from app.db.base import Record, Repositories
 from app.services.ai.extract import extract_cv, fallback_parse
 from app.services.ai.factory import get_ai_provider
@@ -49,7 +50,7 @@ class CVService:
             "experience_years": parsed.experience_years or 0,
             "skills": parsed.skills,
             "education": parsed.education,
-            "cv_text": text[:5000],
+            "cv_text": text[: settings.MAX_CV_TEXT_CHARS],
             "summary": parsed.summary,
             "parsed_by": parsed_by,
             "job_requirement_id": getattr(upload, "job_requirement_id", None),
