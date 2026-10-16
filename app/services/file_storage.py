@@ -2,11 +2,8 @@ import logging
 import os
 import shutil
 import uuid
-
 from fastapi import HTTPException, UploadFile
-
 from app.core.config import settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +24,6 @@ def save_uploaded_file(file: UploadFile) -> str:
 
 
 def validate_file(file: UploadFile) -> None:
-    """Validasi ukuran dan tipe file upload."""
     file_size = 0
     for chunk in file.file:
         file_size += len(chunk)
@@ -55,12 +51,10 @@ def validate_file(file: UploadFile) -> None:
 
 
 def delete_file(file_path: str) -> None:
-    """Hapus file dari disk jika ada."""
     if os.path.exists(file_path):
         os.remove(file_path)
         logger.info(f"File deleted: {file_path}")
 
 
 def get_file_type(file_path: str) -> str:
-    """Ekstrak tipe file dari path."""
     return file_path.split(".")[-1].lower()

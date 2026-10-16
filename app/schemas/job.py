@@ -1,14 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.models.enums import ScoringCriteriaType
 
 
 class ScoringCriteriaRequest(BaseModel):
-    """Request untuk create/update scoring criteria"""
-
     id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
@@ -20,8 +16,6 @@ class ScoringCriteriaRequest(BaseModel):
 
 
 class ScoringCriteriaResponse(ScoringCriteriaRequest):
-    """Response untuk scoring criteria"""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -30,16 +24,12 @@ class ScoringCriteriaResponse(ScoringCriteriaRequest):
 
 
 class JobRequirementRequest(BaseModel):
-    """Request untuk create/update job requirement"""
-
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     criteria: List[ScoringCriteriaRequest] = Field(..., min_length=1)
 
 
 class JobRequirementResponse(BaseModel):
-    """Response untuk job requirement"""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -51,8 +41,6 @@ class JobRequirementResponse(BaseModel):
 
 
 class JobRequirementListResponse(BaseModel):
-    """Response untuk list job requirements"""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: str

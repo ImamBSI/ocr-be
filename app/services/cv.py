@@ -1,5 +1,4 @@
 import logging
-
 from app.core.config import settings
 from app.db.base import Record, Repositories
 from app.services.ai.extract import extract_cv, fallback_parse
@@ -8,7 +7,6 @@ from app.services.file_storage import get_file_type
 from app.services.ocr import OCRService
 
 logger = logging.getLogger(__name__)
-
 
 class CVService:
     @staticmethod

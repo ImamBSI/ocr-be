@@ -1,5 +1,4 @@
 from typing import Optional
-
 from app.core.config import settings
 from app.services.ai.base import AIProvider
 from app.services.ai.providers import OpenAICompatibleProvider

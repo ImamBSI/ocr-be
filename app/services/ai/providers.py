@@ -3,10 +3,8 @@ import json
 import logging
 import random
 from typing import Type
-
 import httpx
 from pydantic import BaseModel, ValidationError
-
 from app.core.config import settings
 from app.services.ai.base import AIError, AIProvider
 
@@ -17,7 +15,6 @@ _RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
 
 
 def _strip_code_fence(content: str) -> str:
-    """Buang wrapper ```json ... ``` yang kadang dikeluarkan model."""
     content = content.strip()
     if content.startswith("```"):
         lines = content.splitlines()
@@ -30,7 +27,6 @@ def _strip_code_fence(content: str) -> str:
 
 
 def _backoff(attempt: int) -> float:
-    """Exponential backoff + jitter (detik)."""
     delay = min(
         settings.AI_RETRY_BASE * (2 ** attempt),
         settings.AI_RETRY_MAX,

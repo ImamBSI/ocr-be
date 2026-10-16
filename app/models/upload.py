@@ -9,8 +9,6 @@ from app.models.enums import UploadStatus
 
 
 class Upload(Base):
-    """Model untuk file uploads"""
-
     __tablename__ = "uploads"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-
 from sqlalchemy import (
     Column,
     DateTime,
@@ -11,13 +10,10 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.orm import relationship
-
 from app.models.base import Base
 
 
 class Score(Base):
-    """Model untuk scoring results"""
-
     __tablename__ = "scores"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

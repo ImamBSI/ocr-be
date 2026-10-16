@@ -64,7 +64,6 @@ async def extract_cv(provider: AIProvider, text: str) -> Optional[ParsedCV]:
 
 
 def fallback_parse(text: str) -> ParsedCV:
-    """Fallback ke parser rule-based yang sudah ada."""
     data = CVParsingService.parse_cv(text)
     return ParsedCV(
         name=data.get("name", "Unknown"),

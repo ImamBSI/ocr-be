@@ -1,12 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Type
-
 from pydantic import BaseModel, Field
 
-
 class ParsedCV(BaseModel):
-    """Output terstruktur hasil ekstraksi CV oleh LLM."""
-
     name: str = Field(..., min_length=1)
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -17,8 +13,6 @@ class ParsedCV(BaseModel):
 
 
 class CriteriaScore(BaseModel):
-    """Skor per kriteria dari LLM."""
-
     name: str
     score: float = Field(..., ge=0, le=100)
     evidence: Optional[str] = None
@@ -26,14 +20,10 @@ class CriteriaScore(BaseModel):
 
 
 class CriteriaScoresResponse(BaseModel):
-    """Wrapper agar LLM bisa mengembalikan array kriteria."""
-
     criteria: list[CriteriaScore]
 
 
 class AIProvider(ABC):
-    """Abstract base untuk provider LLM."""
-
     @abstractmethod
     async def complete_json(
         self, system: str, user: str, schema: Type[BaseModel]
@@ -48,6 +38,4 @@ class AIProvider(ABC):
 
 
 class AIError(Exception):
-    """Exception untuk kegagalan AI provider."""
-
     pass

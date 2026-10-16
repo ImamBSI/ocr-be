@@ -1,17 +1,13 @@
 import uuid
 from datetime import datetime
-
 from sqlalchemy import Column, DateTime, Float, ForeignKey, JSON, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
-
 from app.models.base import Base
 from app.models.enums import ScoringCriteriaType
 
 
 class ScoringCriteria(Base):
-    """Model untuk scoring criteria dalam job requirement"""
-
     __tablename__ = "scoring_criteria"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -35,8 +31,6 @@ class ScoringCriteria(Base):
 
 
 class JobRequirement(Base):
-    """Model untuk job requirement dengan criteria"""
-
     __tablename__ = "job_requirements"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

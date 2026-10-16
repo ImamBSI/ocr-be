@@ -1,15 +1,11 @@
 import uuid
 from datetime import datetime
-
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
-
 from app.models.base import Base
 
 
 class Candidate(Base):
-    """Model untuk candidate/CV data"""
-
     __tablename__ = "candidates"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

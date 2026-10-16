@@ -1,12 +1,8 @@
 from datetime import datetime
 from typing import Dict, List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field
 
-
 class ProcessCVResponse(BaseModel):
-    """Response untuk CV processing"""
-
     id: str
     name: str
     email: str
@@ -20,8 +16,6 @@ class ProcessCVResponse(BaseModel):
 
 
 class CandidateRequest(BaseModel):
-    """Request untuk create/update candidate"""
-
     name: str = Field(..., min_length=1, max_length=255)
     email: str
     phone: Optional[str] = None
@@ -32,8 +26,6 @@ class CandidateRequest(BaseModel):
 
 
 class CandidateResponse(CandidateRequest):
-    """Response untuk single candidate"""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -47,8 +39,6 @@ class CandidateResponse(CandidateRequest):
 
 
 class CandidateDetailResponse(CandidateResponse):
-    """Response detail candidate dengan score info"""
-
     score: Optional[float] = None
     ranking: Optional[int] = None
     matched_criteria: Optional[Dict[str, float]] = None
@@ -57,8 +47,6 @@ class CandidateDetailResponse(CandidateResponse):
 
 
 class CandidatePaginatedResponse(BaseModel):
-    """Paginated response untuk list candidates"""
-
     items: List[CandidateResponse]
     total: int
     page: int

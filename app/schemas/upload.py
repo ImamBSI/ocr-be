@@ -4,8 +4,6 @@ from pydantic import BaseModel, ConfigDict
 from app.models.enums import UploadStatus
 
 class UploadResponse(BaseModel):
-    """Response untuk upload file"""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -18,8 +16,6 @@ class UploadResponse(BaseModel):
 
 
 class BatchUploadResponse(BaseModel):
-    """Response untuk batch upload"""
-
     total: int
     uploaded: int
     failed: int

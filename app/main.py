@@ -1,10 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-
 from app.api.api_router import api_router
 from app.core.config import settings
 from app.db.factory import check_storage, init_storage

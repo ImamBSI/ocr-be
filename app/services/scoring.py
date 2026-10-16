@@ -1,6 +1,5 @@
 import logging
 from typing import Dict, List, Optional, Tuple
-
 from app.core.config import settings
 from app.db.base import Record, Repositories
 from app.models.enums import ScoringCriteriaType

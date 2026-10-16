@@ -7,21 +7,15 @@ from app.schemas.cv import CandidateResponse
 
 
 class ScoringRequest(BaseModel):
-    """Request untuk scoring"""
-
     job_requirement_id: str
 
 
 class BatchScoringRequest(BaseModel):
-    """Request untuk batch scoring"""
-
     candidate_ids: List[str] = Field(..., min_length=1)
     job_requirement_id: str
 
 
 class ScoringResponse(BaseModel):
-    """Response untuk scoring result"""
-
     id: str
     candidate_id: str
     score: float
@@ -35,8 +29,6 @@ class ScoringResponse(BaseModel):
 
 
 class BatchScoringResponse(BaseModel):
-    """Response untuk batch scoring"""
-
     total: int
     scored: int
     failed: int
@@ -44,8 +36,6 @@ class BatchScoringResponse(BaseModel):
 
 
 class RankedCandidateResponse(CandidateResponse):
-    """Response untuk ranked candidate"""
-
     score: float
     ranking: int
     matched_criteria: Dict[str, float]
